@@ -1,0 +1,15 @@
+{
+  "name": "Mój Plan Tygodnia",
+  "short_name": "Mój Plan",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#4a90e2",
+  "icons":[
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3239/3239952.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
