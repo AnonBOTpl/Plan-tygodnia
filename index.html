@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mój Plan Tygodnia</title>
-    <!-- ŁĄCZENIE Z PLIKIEM MANIFESTU -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4a90e2">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3239/3239952.png">
@@ -34,12 +33,13 @@
         .title-label { font-size: 0.85rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
         .event-title { font-size: 1.5rem; font-weight: bold; margin: 5px 0; color: #222; }
         .event-time { font-size: 1.1rem; color: #555; background: #f0f4f8; display: inline-block; padding: 4px 12px; border-radius: 20px; margin-top: 5px; }
+        .event-room { font-size: 1rem; color: #1e8449; background: #eafaf1; display: inline-block; padding: 4px 12px; border-radius: 20px; margin-top: 5px; font-weight: bold; border: 1px solid #c2eadd; }
         .countdown { font-size: 1.2rem; font-weight: bold; color: var(--highlight); margin-top: 15px; }
         .schedule-list { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .schedule-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .schedule-item { display: flex; flex-wrap: wrap; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
         .schedule-item:last-child { border-bottom: none; }
         .schedule-item .time { font-weight: bold; color: var(--primary); min-width: 110px; }
-        .schedule-item.active-item { background-color: #eafaf1; padding-left: 10px; border-radius: 8px; border-bottom: none; }
+        .schedule-item.active-item { background-color: #f8f9fa; padding-left: 10px; border-radius: 8px; border-left: 4px solid var(--success); border-bottom: none; }
         .schedule-item.active-item .time { color: var(--success); }
         button.notify-btn { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: background 0.3s; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
@@ -94,13 +94,19 @@
     <div class="card now-playing" id="current-event-card" style="display:none;">
         <div class="title-label">Teraz trwa</div>
         <div class="event-title" id="current-title">Wczytywanie...</div>
-        <div class="event-time" id="current-time">--:--</div>
+        <div>
+            <span class="event-time" id="current-time">--:--</span>
+            <span class="event-room" id="current-room" style="display:none;"></span>
+        </div>
     </div>
 
     <div class="card up-next" id="next-event-card" style="display:none;">
         <div class="title-label">Następnie</div>
         <div class="event-title" id="next-title">Wczytywanie...</div>
-        <div class="event-time" id="next-time">--:--</div>
+        <div>
+            <span class="event-time" id="next-time">--:--</span>
+            <span class="event-room" id="next-room" style="display:none;"></span>
+        </div>
         <div class="countdown" id="countdown">Za: -- min</div>
     </div>
 
@@ -111,11 +117,9 @@
 </div>
 
 <script>
-    // --- REJESTRACJA SERVICE WORKERA (Dla Aplikacji i Paska Zadań) ---
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log("Aplikacja w tle gotowa!"))
-        .catch(err => console.error("Błąd aplikacji w tle:", err));
+        .catch(err => console.error("Błąd SW:", err));
     }
 
     const ALL_W =["0", "I", "II", "III", "IV", "V", "VI", "VII"];
@@ -124,15 +128,120 @@
     const W_1_3 =["I", "II", "III"];
     const ALL_G =["A", "B", "C"];
 
-    // Baza harmonogramu
+    // Baza harmonogramu z dodanymi Salami
     const rawSchedule = {
-        0:[ { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "09:00", end: "09:30", title: "Zajęcia", weeks:["0"], groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "17:30", end: "18:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G }, { start: "18:15", end: "20:00", title: "Film (wszyscy)", weeks: ALL_W, groups: ALL_G }, { start: "20:15", end: "20:45", title: "Edukacja - relaks", weeks: ["0"], groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ],
-        1:[ { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "09:00", end: "12:00", title: "Społeczność / Wybór władz", weeks: ALL_W, groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "14:30", end: "16:00", title: "Zajęcia 'Głód Alkoholu'", weeks:["I", "II", "III", "IV", "V", "VI", "VII"], groups: ALL_G }, { start: "16:15", end: "19:30", title: "Wyjście na miting", weeks:["VI", "VII"], groups: ALL_G }, { start: "17:20", end: "18:00", title: "Podsumowanie dnia", weeks:["0", "I", "II", "III", "IV", "V"], groups: ALL_G }, { start: "18:30", end: "19:00", title: "Kolacja", weeks:["0", "I", "II", "III", "IV", "V"], groups: ALL_G }, { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ],
-        2:[ { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:30", end: "09:00", title: "Wizyta lekarska", weeks: ALL_W, groups: ALL_G }, { start: "09:15", end: "12:00", title: "Warsztat", weeks: ALL_W, groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "13:30", end: "14:00", title: "Zajęcia Tydzień I", weeks: ["I"], groups: ALL_G }, { start: "15:00", end: "16:30", title: "Grupa zadaniowa", weeks: ALL_W, groups:["A"] }, { start: "17:20", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G }, { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G }, { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ],
-        3:[ { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:30", end: "09:15", title: "Edukacja 'Skutki Zdrowotne'", weeks: ["V", "VI", "VII"], groups: ALL_G }, { start: "09:30", end: "12:00", title: "Warsztat", weeks: ALL_W, groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "15:00", end: "16:30", title: "Grupa zadaniowa", weeks: ALL_W, groups: ["B"] }, { start: "17:00", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G }, { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G }, { start: "20:45", end: "21:15", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ],
-        4:[ { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "09:00", end: "12:00", title: "Społeczność", weeks: ALL_W, groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "13:00", end: "13:15", title: "Społeczność (cd)", weeks: ALL_W, groups: ALL_G }, { start: "15:00", end: "16:30", title: "Grupa zadaniowa", weeks: ALL_W, groups: ["C"] }, { start: "17:20", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G }, { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G }, { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ],
-        5:[ { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "09:00", end: "10:00", title: "Edukacja - objawy", weeks:["I", "II"], groups: ALL_G }, { start: "09:30", end: "12:00", title: "Trzeźwe życie", weeks: W_4_7, groups: ALL_G }, { start: "10:15", end: "12:00", title: "ERGO", weeks: W_0_3, groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "14:00", end: "16:00", title: "Grupa zadaniowa (Gra/Film)", weeks: ALL_W, groups: ALL_G }, { start: "16:30", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G }, { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G }, { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ],
-        6:[ { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G }, { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, { start: "09:00", end: "10:30", title: "Trzeźwe życie", weeks:["IV", "V", "VI"], groups: ALL_G }, { start: "09:00", end: "10:30", title: "Praca własna", weeks: ["II", "III"], groups: ALL_G }, { start: "09:00", end: "10:30", title: "Edukacja (zasady)", weeks: ["0", "I"], groups: ALL_G }, { start: "11:00", end: "12:30", title: "Edukacja (wstęp)", weeks: ["III"], groups: ALL_G }, { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G }, { start: "13:15", end: "14:00", title: "Edukacja 'Dzienniczek uczuć'", weeks: ["0"], groups: ALL_G }, { start: "14:15", end: "15:00", title: "Edukacja - Info zwrotna", weeks:["0", "I"], groups: ALL_G }, { start: "17:30", end: "18:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G }, { start: "18:20", end: "18:50", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G }, { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G }, { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks:["I", "II"], groups: ALL_G }, { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } ]
+        0:[ 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "09:00", end: "09:30", title: "Zajęcia", weeks:["0"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "17:30", end: "18:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "18:15", end: "20:00", title: "Film (wszyscy)", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "20:15", end: "20:45", title: "Edukacja - relaks", weeks: ["0"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ],
+        1:[ 
+            { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, 
+            { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "09:00", end: "12:00", title: "Społeczność / Wybór władz", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "14:30", end: "16:00", title: "Zajęcia 'Głód Alkoholu' (młodsza)", weeks:["I", "II", "III"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "14:30", end: "16:00", title: "Zajęcia 'Głód Alkoholu' (starsza)", weeks:["IV", "V", "VI", "VII"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "16:15", end: "19:30", title: "Wyjście na miting", weeks:["VI", "VII"], groups: ALL_G }, 
+            { start: "17:20", end: "18:00", title: "Podsumowanie dnia", weeks:["0", "I", "II", "III", "IV", "V"], groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "18:30", end: "19:00", title: "Kolacja", weeks:["0", "I", "II", "III", "IV", "V"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ],
+        2:[ 
+            { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, 
+            { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:30", end: "09:00", title: "Wizyta lekarska", weeks: ALL_W, groups: ALL_G }, 
+            { start: "09:15", end: "12:00", title: "Warsztat", weeks: ALL_W, groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "13:30", end: "14:00", title: "Zajęcia Tydzień I", weeks: ["I"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "15:00", end: "16:30", title: "Grupa zadaniowa", weeks: ALL_W, groups:["A"], room: "sala kominkowa" }, 
+            { start: "17:20", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ],
+        3:[ 
+            { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, 
+            { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:30", end: "09:15", title: "Edukacja 'Skutki Zdrowotne'", weeks: ["V", "VI", "VII"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "09:30", end: "12:00", title: "Warsztat", weeks: ALL_W, groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "15:00", end: "16:30", title: "Grupa zadaniowa", weeks: ALL_W, groups: ["B"], room: "sala kominkowa" }, 
+            { start: "17:00", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "20:45", end: "21:15", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ],
+        4:[ 
+            { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, 
+            { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "09:00", end: "12:00", title: "Społeczność", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "13:00", end: "13:15", title: "Społeczność (cd)", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "15:00", end: "16:30", title: "Grupa zadaniowa", weeks: ALL_W, groups: ["C"], room: "sala terapii" }, 
+            { start: "17:20", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ],
+        5:[ 
+            { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, 
+            { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "09:00", end: "10:00", title: "Edukacja - objawy", weeks:["I", "II"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "09:30", end: "12:00", title: "Trzeźwe życie", weeks: W_4_7, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "10:15", end: "12:00", title: "ERGO", weeks: W_0_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "14:00", end: "16:00", title: "Grupa zadaniowa (Gra/Film)", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "16:30", end: "18:00", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "18:30", end: "19:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks: W_1_3, groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ],
+        6:[ 
+            { start: "06:35", end: "06:45", title: "Gimnastyka", weeks: W_0_3, groups: ALL_G }, 
+            { start: "06:45", end: "06:55", title: "Gimnastyka", weeks: W_4_7, groups: ALL_G }, 
+            { start: "07:00", end: "07:30", title: "Śniadanie / refleksja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "07:40", end: "08:00", title: "Sprzątanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "08:00", end: "08:15", title: "Sprawdzanie rejonów", weeks: ALL_W, groups: ALL_G }, 
+            { start: "09:00", end: "10:30", title: "Trzeźwe życie", weeks:["IV", "V", "VI"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "09:00", end: "10:30", title: "Praca własna", weeks: ["II", "III"], groups: ALL_G }, 
+            { start: "09:00", end: "10:30", title: "Edukacja (zasady)", weeks: ["0", "I"], groups: ALL_G, room: "jadalnia" }, 
+            { start: "11:00", end: "12:30", title: "Edukacja (wstęp)", weeks: ["III"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "12:30", end: "13:00", title: "Obiad", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "13:15", end: "14:00", title: "Edukacja 'Dzienniczek uczuć'", weeks: ["0"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "14:15", end: "15:00", title: "Edukacja - Info zwrotna", weeks:["0", "I"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "17:30", end: "18:00", title: "Kolacja", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "18:20", end: "18:50", title: "Podsumowanie dnia", weeks: ALL_W, groups: ALL_G, room: {A: "jadalnia", B: "sala kominkowa", C: "sala terapii"} }, 
+            { start: "21:00", end: "21:20", title: "Społeczność wieczorna", weeks: ALL_W, groups: ALL_G, room: "jadalnia" }, 
+            { start: "21:30", end: "22:00", title: "Zajęcia relaksacyjne", weeks:["I", "II"], groups: ALL_G, room: "sala kominkowa" }, 
+            { start: "22:00", end: "23:59", title: "Cisza nocna", weeks: ALL_W, groups: ALL_G } 
+        ]
     };
 
     const dayNames =["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
@@ -185,6 +294,16 @@
         return parseInt(parts[0]) * 60 + parseInt(parts[1]);
     }
 
+    // Nowa funkcja wyciągająca poprawną salę
+    function getRoomStr(ev) {
+        if (!ev.room) return "";
+        let group = document.getElementById('group-select').value;
+        if (typeof ev.room === 'object') {
+            return ev.room[group] || "";
+        }
+        return ev.room;
+    }
+
     function requestNotifications() {
         playBeep();
         if (!("Notification" in window)) {
@@ -206,13 +325,12 @@
     }
 
     function wykonajTest() {
-        // PRAWDZIWY TEST POWIADOMIENIA NA PASKU (SERVICE WORKER)
         if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
             navigator.serviceWorker.ready.then(function(registration) {
                 registration.showNotification("Test Powiadomienia 🔔", {
                     body: "Działa! Takie okienko pojawi się na górnym pasku telefonu.",
                     icon: "https://cdn-icons-png.flaticon.com/512/3239/3239952.png",
-                    vibrate:[200, 100, 200, 100, 200], // Silna wibracja na Androidzie
+                    vibrate:[200, 100, 200, 100, 200],
                     requireInteraction: true
                 });
             });
@@ -227,20 +345,18 @@
     }
 
     function sendRealNotification(title, text) {
-        playBeep(); // Awaryjny dźwięk zawsze
+        playBeep(); 
 
-        // WYSYŁANIE PRAWDZIWEGO POWIADOMIENIA NA PASEK SYSTEMOWY
         if ('serviceWorker' in navigator && navigator.serviceWorker.ready && Notification.permission === "granted") {
             navigator.serviceWorker.ready.then(function(registration) {
                 registration.showNotification(title, {
                     body: text,
                     icon: "https://cdn-icons-png.flaticon.com/512/3239/3239952.png",
                     vibrate:[200, 100, 200, 100, 200],
-                    requireInteraction: true // Powiadomienie zostaje dopóki w nie nie klikniesz
+                    requireInteraction: true 
                 });
             });
         } else {
-            // Awaryjnie (jeśli coś zawiedzie) wyrzucamy alert na ekran
             alert("🔔 PRZYPOMNIENIE: \n\n" + text);
         }
     }
@@ -266,22 +382,43 @@
             }
         }
 
+        // Aktualizacja karty TERAZ
         const currentCard = document.getElementById('current-event-card');
+        const currentRoomEl = document.getElementById('current-room');
         if (currentEvent) {
             currentCard.style.display = 'block';
             document.getElementById('current-title').innerText = currentEvent.title;
             document.getElementById('current-time').innerText = `${currentEvent.start} - ${currentEvent.end}`;
+            
+            let roomStr = getRoomStr(currentEvent);
+            if (roomStr) {
+                currentRoomEl.innerText = `📍 ${roomStr}`;
+                currentRoomEl.style.display = 'inline-block';
+            } else {
+                currentRoomEl.style.display = 'none';
+            }
         } else {
             currentCard.style.display = 'block';
             document.getElementById('current-title').innerText = "Czas wolny / Przerwa";
             document.getElementById('current-time').innerText = "Odpocznij chwilę!";
+            currentRoomEl.style.display = 'none';
         }
 
+        // Aktualizacja karty NASTĘPNIE
         const nextCard = document.getElementById('next-event-card');
+        const nextRoomEl = document.getElementById('next-room');
         if (nextEvent) {
             nextCard.style.display = 'block';
             document.getElementById('next-title').innerText = nextEvent.title;
             document.getElementById('next-time').innerText = `${nextEvent.start} - ${nextEvent.end}`;
+            
+            let roomStr = getRoomStr(nextEvent);
+            if (roomStr) {
+                nextRoomEl.innerText = `📍 ${roomStr}`;
+                nextRoomEl.style.display = 'inline-block';
+            } else {
+                nextRoomEl.style.display = 'none';
+            }
             
             let minsToNext = timeToMins(nextEvent.start) - currentMins;
             document.getElementById('countdown').innerText = `Rozpocznie się za: ${minsToNext} min`;
@@ -298,20 +435,33 @@
                 const uniqueNotifyKey = nextEvent.title + "_t_" + targetNotifyTime + "_d_" + now.getDate();
                 if (!notifiedEvents.includes(uniqueNotifyKey)) {
                     notifiedEvents.push(uniqueNotifyKey);
-                    sendRealNotification("Zaraz zajęcia!", `Zaczyna się: ${nextEvent.title}\nSala czeka!`);
+                    
+                    let notifyRoom = roomStr ? `Sala: ${roomStr}` : "Brak przypisanej sali";
+                    sendRealNotification("Zaraz zajęcia!", `Zaczyna się: ${nextEvent.title}\n${notifyRoom}`);
                 }
             }
         } else {
             nextCard.style.display = 'none';
         }
 
+        // Aktualizacja pełnej listy na dole
         const listContainer = document.getElementById('daily-list');
         listContainer.innerHTML = '';
         schedule.forEach(ev => {
             let div = document.createElement('div');
             div.className = 'schedule-item';
-            if (currentEvent && ev.title === currentEvent.title && ev.start === currentEvent.start) div.classList.add('active-item');
-            div.innerHTML = `<span class="time">${ev.start} - ${ev.end}</span> <span class="title">${ev.title}</span>`;
+            if (currentEvent && ev.title === currentEvent.title && ev.start === currentEvent.start) {
+                div.classList.add('active-item');
+            }
+            
+            let roomStr = getRoomStr(ev);
+            let roomHtml = roomStr ? `<span style="font-size:0.85rem; background:#eafaf1; color:#2ecc71; padding:3px 8px; border-radius:12px; font-weight:bold; white-space:nowrap; margin-left:auto;">📍 ${roomStr}</span>` : '';
+            
+            div.innerHTML = `
+                <span class="time">${ev.start} - ${ev.end}</span> 
+                <span class="title" style="flex-grow:1; padding-left:10px;">${ev.title}</span>
+                ${roomHtml}
+            `;
             listContainer.appendChild(div);
         });
     }
