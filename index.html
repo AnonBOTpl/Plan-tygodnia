@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
     <title>Mój Plan Tygodnia</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4a90e2">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3239/3239952.png">
+    <link rel="apple-touch-icon" href="./icon.png">
     
     <style>
         :root {
@@ -329,7 +330,7 @@
             navigator.serviceWorker.ready.then(function(registration) {
                 registration.showNotification("Test Powiadomienia 🔔", {
                     body: "Działa! Takie okienko pojawi się na górnym pasku telefonu.",
-                    icon: "https://cdn-icons-png.flaticon.com/512/3239/3239952.png",
+                    icon: "./icon.png",
                     vibrate:[200, 100, 200, 100, 200],
                     requireInteraction: true
                 });
@@ -351,7 +352,7 @@
             navigator.serviceWorker.ready.then(function(registration) {
                 registration.showNotification(title, {
                     body: text,
-                    icon: "https://cdn-icons-png.flaticon.com/512/3239/3239952.png",
+                    icon: "./icon.png",
                     vibrate:[200, 100, 200, 100, 200],
                     requireInteraction: true 
                 });
@@ -454,14 +455,25 @@
                 div.classList.add('active-item');
             }
             
+            let timeSpan = document.createElement('span');
+            timeSpan.className = 'time';
+            timeSpan.textContent = `${ev.start} - ${ev.end}`;
+            div.appendChild(timeSpan);
+
+            let titleSpan = document.createElement('span');
+            titleSpan.className = 'title';
+            titleSpan.style.cssText = 'flex-grow:1; padding-left:10px;';
+            titleSpan.textContent = ev.title;
+            div.appendChild(titleSpan);
+
             let roomStr = getRoomStr(ev);
-            let roomHtml = roomStr ? `<span style="font-size:0.85rem; background:#eafaf1; color:#2ecc71; padding:3px 8px; border-radius:12px; font-weight:bold; white-space:nowrap; margin-left:auto;">📍 ${roomStr}</span>` : '';
+            if (roomStr) {
+                let roomSpan = document.createElement('span');
+                roomSpan.style.cssText = 'font-size:0.85rem; background:#eafaf1; color:#2ecc71; padding:3px 8px; border-radius:12px; font-weight:bold; white-space:nowrap; margin-left:auto;';
+                roomSpan.textContent = `📍 ${roomStr}`;
+                div.appendChild(roomSpan);
+            }
             
-            div.innerHTML = `
-                <span class="time">${ev.start} - ${ev.end}</span> 
-                <span class="title" style="flex-grow:1; padding-left:10px;">${ev.title}</span>
-                ${roomHtml}
-            `;
             listContainer.appendChild(div);
         });
     }
